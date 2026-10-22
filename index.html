@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2463c6">
+<title>מערכת הדפסות</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root { --bg:#f3f5f8; --card:#fff; --text:#1d2330; --muted:#6b7280; --line:#e5e7eb;
+          --blue:#2463c6; --green:#1f9d55; --red:#d64545; --amber:#d98a00; --chip:#eef1f5; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#11151c; --card:#1b212b; --text:#e7eaf0; --muted:#9aa3b2; --line:#2a3240; --chip:#262e3a; } }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family:"Segoe UI",Roboto,Arial,sans-serif; font-size:15px; }
+  header { position:sticky; top:0; z-index:5; background:var(--blue); color:#fff;
+           padding:calc(12px + env(safe-area-inset-top)) 16px 12px; display:flex; align-items:center; gap:10px; }
+  header h1 { margin:0; font-size:19px; flex:1; }
+  header button { background:rgba(255,255,255,.18); color:#fff; padding:6px 10px; }
+  .conn { font-size:12px; opacity:.95; display:flex; align-items:center; gap:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#aaa; }
+  .dot.on { background:#4ade80; box-shadow:0 0 6px #4ade80; } .dot.off { background:#f87171; }
+  main { max-width:900px; margin:0 auto; padding:14px 14px calc(80px + env(safe-area-inset-bottom)); display:grid; gap:14px; }
+  .card { background:var(--card); border-radius:14px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { margin:0 0 10px; font-size:16px; display:flex; align-items:center; gap:8px; }
+  .badge { background:var(--red); color:#fff; border-radius:12px; padding:1px 9px; font-size:13px; }
+  .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  @media (min-width:600px) { .stats { grid-template-columns:repeat(4,1fr); } }
+  .stat { background:var(--chip); border-radius:10px; padding:10px; }
+  .stat b { display:block; font-size:22px; } .stat span { color:var(--muted); font-size:12px; }
+  .item { border-bottom:1px solid var(--line); padding:10px 0; display:grid; gap:4px; }
+  .item:last-child { border-bottom:0; }
+  .item .top { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .item .file { font-weight:600; word-break:break-word; }
+  .muted { color:var(--muted); font-size:13px; }
+  .st { padding:2px 9px; border-radius:10px; font-size:12px; white-space:nowrap; background:var(--chip); }
+  .st-green { background:#dcfce7; color:#166534; } .st-red { background:#fee2e2; color:#991b1b; }
+  .st-amber { background:#fef3c7; color:#92400e; } .st-blue { background:#dbeafe; color:#1e40af; }
+  button { font:inherit; border:0; border-radius:10px; padding:10px 14px; cursor:pointer; background:var(--blue); color:#fff; }
+  button.green { background:var(--green); } button.red { background:var(--red); }
+  button.ghost { background:var(--chip); color:var(--text); }
+  button:disabled { opacity:.5; }
+  .actions { display:flex; gap:8px; margin-top:6px; } .actions button { flex:1; }
+  label { display:grid; gap:4px; font-size:13px; color:var(--muted); }
+  input, select { font:inherit; padding:10px; border:1px solid var(--line); border-radius:10px;
+                  background:var(--card); color:var(--text); width:100%; }
+  .grid2 { display:grid; grid-template-columns:1fr 100px; gap:8px; }
+  .stack { display:grid; gap:10px; }
+  .empty { color:var(--muted); padding:6px 0; }
+  .tabs { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line);
+          display:flex; padding-bottom:env(safe-area-inset-bottom); z-index:5; }
+  .tabs button { flex:1; background:none; color:var(--muted); border-radius:0; padding:10px 4px; font-size:12px;
+                 display:flex; flex-direction:column; align-items:center; gap:2px; position:relative; }
+  .tabs button .ic { font-size:20px; } .tabs button.active { color:var(--blue); font-weight:700; }
+  .tabs .tb { position:absolute; top:4px; left:calc(50% - 22px); background:var(--red); color:#fff;
+              border-radius:9px; font-size:11px; padding:0 6px; }
+  .view { display:none; } .view.active { display:grid; gap:14px; }
+  #toast { position:fixed; bottom:calc(76px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%);
+           background:#1d2330; color:#fff; padding:10px 18px; border-radius:10px; display:none; z-index:9; max-width:90%; }
+  #setup { position:fixed; inset:0; background:var(--bg); z-index:20; display:none; padding:24px 18px; overflow:auto; }
+  #setup .card { max-width:520px; margin:40px auto 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖨 מערכת הדפסות</h1>
+  <span class="conn" id="conn"><span class="dot"></span>טוען...</span>
+  <button onclick="openSetup()" aria-label="הגדרות">⚙</button>
+</header>
+
+<main>
+  <!-- בית -->
+  <section class="view active" id="v-home">
+    <div class="card" id="pendingHome" style="display:none"></div>
+    <div class="card">
+      <h2>מחשב ההדפסות</h2>
+      <p id="pcState" style="margin:0 0 10px">—</p>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card">
+      <h2>עבודות אחרונות</h2>
+      <div id="jobsShort"></div>
+    </div>
+  </section>
+
+  <!-- אישורים -->
+  <section class="view" id="v-pending">
+    <div class="card">
+      <h2>ממתינים לאישור <span class="badge" id="pendingCount" style="display:none"></span></h2>
+      <div id="pending"></div>
+    </div>
+  </section>
+
+  <!-- הדפסה -->
+  <section class="view" id="v-print">
+    <div class="card stack">
+      <h2>הדפסה מרחוק</h2>
+      <div id="sharedBox" style="display:none" class="stat">
+        <b id="sharedName" style="font-size:15px;word-break:break-word"></b>
+        <span>קובץ ששותף לאפליקציה · <a href="#" onclick="clearShared();return false">בחר קובץ אחר</a></span>
+      </div>
+      <label id="fileLabel">קובץ<input type="file" id="file"
+        accept=".pdf,.doc,.docx,.rtf,.odt,.txt,.xls,.xlsx,.csv,.ppt,.pptx,image/*,application/pdf"></label>
+      <div class="grid2">
+        <label>מדפסת<select id="printer"></select></label>
+        <label>עותקים<input type="number" id="copies" value="1" min="1" max="300" inputmode="numeric"></label>
+      </div>
+      <button id="sendBtn" onclick="upload()">שלח להדפסה</button>
+      <p class="muted" id="uploadNote" style="margin:0"></p>
+    </div>
+    <div class="card stack">
+      <h2>פעולות במחשב</h2>
+      <button class="ghost" onclick="cmd('retry_failed')">↻ נסה שוב את הנכשלים</button>
+      <button class="ghost" onclick="cmd('save_settings')">💾 שמור הגדרות מדפסות כקבועות</button>
+    </div>
+  </section>
+
+  <!-- היסטוריה -->
+  <section class="view" id="v-history">
+    <div class="card">
+      <h2>כל העבודות</h2>
+      <div id="jobs"></div>
+    </div>
+    <div class="card">
+      <h2>יומן המחשב</h2>
+      <div id="history"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button class="active" data-v="home"><span class="ic">🏠</span>ראשי</button>
+  <button data-v="pending"><span class="ic">⏳</span>אישורים<span class="tb" id="tabBadge" style="display:none"></span></button>
+  <button data-v="print"><span class="ic">🖨</span>הדפסה</button>
+  <button data-v="history"><span class="ic">📋</span>היסטוריה</button>
+</nav>
+
+<div id="setup">
+  <div class="card stack">
+    <h2>⚙ חיבור למערכת</h2>
+    <p class="muted" style="margin:0">הדבק את קישור לוח הבקרה (זה שמסתיים ב-<b>?k=</b>…), או מלא כתובת ומפתח בנפרד.</p>
+    <label>קישור מלא<input id="sLink" placeholder="https://script.google.com/macros/s/…/exec?k=…" dir="ltr"></label>
+    <label>כתובת<input id="sUrl" dir="ltr"></label>
+    <label>מפתח (KEY)<input id="sKey" dir="ltr"></label>
+    <label style="display:flex;align-items:center;gap:8px;flex-direction:row;color:var(--text)">
+      <input type="checkbox" id="sNotify" style="width:auto"> התראה וצליל על בקשה חדשה (כשהאפליקציה פתוחה)</label>
+    <p class="muted" id="sResult" style="margin:0"></p>
+    <div class="actions">
+      <button class="green" onclick="saveSetup()">שמור והתחבר</button>
+      <button class="ghost" onclick="closeSetup()" id="sCancel">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbxQJjLYMTcLJ_So6z7bC_4N-LlLofgvnaANm3jAHqRRbOmaSKJ3MJq7e6A6SGbuZzU5/exec";
+
+// ---- אחסון (עטוף, כי בחלק מהממירים הוא לא זמין) ----
+const mem = {};
+function getS(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return k in mem ? mem[k] : d; } }
+function setS(k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} }
+
+let cfg = { url: getS("pm_url", DEFAULT_URL), key: getS("pm_key", ""), notify: getS("pm_notify", "1") === "1" };
+let printersLoaded = "", knownPending = null, busy = false;
+
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.style.display = "block";
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.display = "none", 3500); }
+function cls(s) {
+  if (/נשלח למדפסת|הודפס/.test(s)) return "st-green";
+  if (/נכשל|נדחה/.test(s)) return "st-red";
+  if (/תקוע|ממתין|התקבל$/.test(s)) return "st-amber";
+  return "st-blue";
+}
+function ago(ms) {
+  if (!ms) return "אף פעם";
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return `לפני ${s} שנ׳`;
+  if (s < 3600) return `לפני ${Math.round(s / 60)} דק׳`;
+  return `לפני ${Math.round(s / 3600)} שע׳`;
+}
+
+// ---- תקשורת עם הסקריפט ----
+async function api(action, extra = {}) {
+  if (!cfg.url || !cfg.key) throw new Error("לא הוגדר חיבור");
+  let res, text;
+  try {
+    res = await fetch(cfg.url, {
+      method: "POST", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },   // בלי preflight
+      body: JSON.stringify(Object.assign({ action, key: cfg.key }, extra))
+    });
+    text = await res.text();
+  } catch (e) {
+    throw new Error("אין חיבור לשרת (" + e.message + "). בדוק אינטרנט, ושהכתובת מסתיימת ב-/exec");
+  }
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) {
+    throw new Error("השרת החזיר דף ולא נתונים. בפריסה צריך: Who has access = Anyone, ואחרי כל שינוי Deploy ← Manage deployments ← New version");
+  }
+  if (!data.ok) {
+    if (data.error === "פעולה לא מוכרת")
+      throw new Error("הסקריפט עדיין בגרסה הישנה. הדבק את Code.gs החדש ועשה Deploy ← Manage deployments ← New version");
+    if (data.error === "מפתח שגוי")
+      throw new Error("המפתח שגוי. העתק אותו מ-Project Settings ← Script Properties ← KEY");
+    throw new Error(data.error || "שגיאה");
+  }
+  return data;
+}
+
+// ---- טעינה ----
+async function load() {
+  if (busy || !cfg.key) return;
+  busy = true;
+  try { render(await api("dashboard")); }
+  catch (e) {
+    document.getElementById("conn").innerHTML = `<span class="dot off"></span>אין חיבור`;
+    if (/מפתח|אין גישה/.test(e.message)) { toast("המפתח שגוי"); openSetup(); }
+  } finally { busy = false; }
+}
+
+function jobItem(j) {
+  return `<div class="item"><div class="top"><span class="file">${esc(j.fileName)}</span>
+    <span class="st ${cls(j.status)}">${esc(j.status)}</span></div>
+    <span class="muted">${esc(j.senderName || j.senderEmail)} · ${esc(j.printer)} · ${esc(j.copies)} עותקים · ${esc(j.created)}</span>
+    ${j.note ? `<span class="muted">${esc(j.note)}</span>` : ""}</div>`;
+}
+
+function pendingItem(j) {
+  return `<div class="item"><div class="top"><span class="file">${esc(j.fileName)}</span>
+    <span class="muted">${esc(j.created)}</span></div>
+    <span>${esc(j.senderName)} <span class="muted">${esc(j.senderEmail)}</span></span>
+    <span class="muted">${esc(j.subject)} · ${esc(j.printer)} · ${esc(j.copies)} עותקים</span>
+    <div class="actions"><button class="green" onclick="decide('${esc(j.id)}',true,this)">✔ אשר</button>
+    <button class="red" onclick="decide('${esc(j.id)}',false,this)">✖ דחה</button></div></div>`;
+}
+
+function render(d) {
+  const pc = d.pc || {};
+  document.getElementById("conn").innerHTML =
+    `<span class="dot ${d.online ? "on" : "off"}"></span>${d.online ? "המחשב מחובר" : "המחשב לא מחובר"} · ${ago(d.lastSeen)}`;
+  document.getElementById("pcState").textContent = d.pc ? "מצב: " + (pc.state || "—") : "המחשב עוד לא התחבר";
+  const c = pc.counters || {};
+  document.getElementById("stats").innerHTML = [
+    ["התקבלו", c.received ?? "—"], ["נשלחו למדפסת", c.printed ?? "—"],
+    ["נכשלו", c.failed ?? "—"], ["ב-Failed", pc.failedFiles ?? "—"]
+  ].map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+
+  const printers = (pc.printers || []).join("|");
+  if (printers !== printersLoaded) {
+    printersLoaded = printers;
+    const sel = document.getElementById("printer"), cur = sel.value;
+    sel.innerHTML = (pc.printers || []).map(p => `<option>${esc(p)}</option>`).join("");
+    if (cur) sel.value = cur;
+  }
+
+  const pend = d.pending || [];
+  const n = pend.length;
+  for (const id of ["pendingCount", "tabBadge"]) {
+    const b = document.getElementById(id); b.style.display = n ? "" : "none"; b.textContent = n;
+  }
+  const pendHtml = n ? pend.map(pendingItem).join("") : `<div class="empty">אין בקשות שממתינות לאישור</div>`;
+  document.getElementById("pending").innerHTML = pendHtml;
+  const home = document.getElementById("pendingHome");
+  home.style.display = n ? "" : "none";
+  home.innerHTML = n ? `<h2>ממתינים לאישור <span class="badge">${n}</span></h2>${pendHtml}` : "";
+
+  // התראה על בקשה חדשה
+  const ids = new Set(pend.map(j => j.id));
+  if (knownPending && [...ids].some(id => !knownPending.has(id))) alertNew(pend.find(j => !knownPending.has(j.id)));
+  knownPending = ids;
+
+  const jobs = d.jobs || [];
+  document.getElementById("jobsShort").innerHTML = jobs.slice(0, 6).map(jobItem).join("") || `<div class="empty">אין עדיין עבודות</div>`;
+  document.getElementById("jobs").innerHTML = jobs.map(jobItem).join("") || `<div class="empty">אין עדיין עבודות</div>`;
+  document.getElementById("history").innerHTML = (pc.history || []).map(h => `<div class="item">
+    <div class="top"><span class="file">${esc(h.file)}</span><span class="st ${cls(h.event)}">${esc(h.event)}</span></div>
+    <span class="muted">${esc(h.time)} · ${esc(h.printer)} · ${esc(h.copies)} עותקים${h.note ? " · " + esc(h.note) : ""}</span></div>`).join("")
+    || `<div class="empty">אין נתונים</div>`;
+}
+
+function alertNew(j) {
+  if (!cfg.notify || !j) return;
+  try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1175].forEach((f, i) => { const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(ac.destination); g.gain.value = .15;
+      o.start(ac.currentTime + i * .18); o.stop(ac.currentTime + i * .18 + .15); });
+  } catch (e) {}
+  try {
+    if ("Notification" in window && Notification.permission === "granted")
+      new Notification("בקשת הדפסה חדשה", { body: `${j.senderName || j.senderEmail}: ${j.fileName}` });
+  } catch (e) {}
+  toast(`בקשה חדשה מ-${j.senderName || j.senderEmail}`);
+}
+
+// ---- פעולות ----
+async function decide(id, ok, btn) {
+  btn.disabled = true;
+  try { await api(ok ? "approve" : "reject", { id, by: "מנהל (אפליקציה)" });
+        toast(ok ? "אושר ונשלח למחשב" : "נדחה"); load(); }
+  catch (e) { btn.disabled = false; toast("שגיאה: " + e.message); }
+}
+
+async function cmd(type) {
+  try { await api("command", { type }); toast("יתבצע בסנכרון הבא של המחשב"); }
+  catch (e) { toast("שגיאה: " + e.message); }
+}
+
+function upload() {
+  const f = sharedFile || document.getElementById("file").files[0];
+  const printer = document.getElementById("printer").value;
+  const copies = document.getElementById("copies").value;
+  if (!f) return toast("בחר קובץ");
+  if (!printer) return toast("אין רשימת מדפסות - המחשב עוד לא התחבר");
+  if (f.size > 25 * 1024 * 1024) return toast("הקובץ גדול מ-25MB");
+  const btn = document.getElementById("sendBtn"), note = document.getElementById("uploadNote");
+  btn.disabled = true; note.textContent = "מעלה...";
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      await api("upload", { b64: r.result.split(",")[1], fileName: f.name, mime: f.type, printer, copies });
+      document.getElementById("file").value = ""; clearShared();
+      note.textContent = "נשלח. אפשר לעקוב בהיסטוריה.";
+      toast("נשלח להדפסה"); load();
+    } catch (e) { note.textContent = "שגיאה: " + e.message; }
+    btn.disabled = false;
+  };
+  r.readAsDataURL(f);
+}
+
+// ---- הגדרות ----
+function parseLink(text) {
+  text = text.trim(); let url = "", key = "";
+  if (text.startsWith("http")) {
+    const [base, q = ""] = text.split("?"); url = base;
+    q.split("&").forEach(p => { if (p.startsWith("k=")) key = decodeURIComponent(p.slice(2)); });
+  } else if (text) key = text;
+  return { url, key };
+}
+function openSetup() {
+  document.getElementById("sUrl").value = cfg.url;
+  document.getElementById("sKey").value = cfg.key;
+  document.getElementById("sNotify").checked = cfg.notify;
+  document.getElementById("sCancel").style.display = cfg.key ? "" : "none";
+  document.getElementById("setup").style.display = "block";
+}
+function closeSetup() { document.getElementById("setup").style.display = "none"; }
+document.getElementById("sLink").addEventListener("input", e => {
+  const p = parseLink(e.target.value);
+  if (p.url) document.getElementById("sUrl").value = p.url;
+  if (p.key) document.getElementById("sKey").value = p.key;
+});
+async function saveSetup() {
+  const res = document.getElementById("sResult");
+  const old = Object.assign({}, cfg);
+  cfg.url = document.getElementById("sUrl").value.trim();
+  cfg.key = document.getElementById("sKey").value.trim();
+  cfg.notify = document.getElementById("sNotify").checked;
+  res.textContent = "בודק חיבור...";
+  try {
+    render(await api("dashboard"));
+    setS("pm_url", cfg.url); setS("pm_key", cfg.key); setS("pm_notify", cfg.notify ? "1" : "0");
+    res.textContent = ""; closeSetup(); toast("✓ מחובר");
+    if (cfg.notify && "Notification" in window && Notification.permission === "default") {
+      try { Notification.requestPermission(); } catch (e) {}
+    }
+  } catch (e) {
+    cfg = old;
+    res.textContent = "✗ " + e.message;
+  }
+}
+
+// ---- לשוניות ----
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "v-" + b.dataset.v));
+  window.scrollTo(0, 0);
+}));
+
+// ---- קובץ ששותף מאפליקציה אחרת (תפריט "שיתוף") ----
+let sharedFile = null;
+function showTab(v) { document.querySelector(`.tabs button[data-v="${v}"]`).click(); }
+function clearShared() {
+  sharedFile = null;
+  document.getElementById("sharedBox").style.display = "none";
+  document.getElementById("fileLabel").style.display = "";
+}
+async function takeShared() {
+  if (!location.search.includes("share=1") || !("caches" in window)) return;
+  history.replaceState(null, "", location.pathname);
+  try {
+    const cache = await caches.open("pm-share");
+    const res = await cache.match("shared-file");
+    if (!res) return;
+    const blob = await res.blob();
+    const name = decodeURIComponent(res.headers.get("X-Name") || "file");
+    sharedFile = new File([blob], name, { type: blob.type });
+    await cache.delete("shared-file");
+    document.getElementById("sharedName").textContent = "📎 " + name;
+    document.getElementById("sharedBox").style.display = "";
+    document.getElementById("fileLabel").style.display = "none";
+    showTab("print");
+    toast("בחר מדפסת ועותקים ולחץ שלח");
+  } catch (e) { toast("לא הצלחתי לקרוא את הקובץ ששותף"); }
+}
+
+// ---- הפעלה ----
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+takeShared();
+if (!cfg.key) openSetup(); else load();
+setInterval(load, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
